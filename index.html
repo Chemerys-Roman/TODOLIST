@@ -1,0 +1,38 @@
+ <!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Todos App</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="css/style.css" />
+  
+</head>
+
+<body>
+  <section class="header"> 
+    <h1 class="todoListHead">TODO LIST</h1>  
+    <div class="control-panel-container">
+        <form class="form-enter-task" id="newTask">
+              <input id="add-task-input" type="text" class="form-enter-task__item form-enter-task__item-input" name="newTask" placeholder="Add a new task" />
+              <button id="add-task-button" name="newTask" type="submit" class="form-enter-task__item form-enter-task__item-btn btn btn-add">ADD</button>
+        </form>
+        <form id="undo-form" class="backContainer">
+              <button id="undo" class="undo-btn"><img class="undo-btn-img" src="i/arrow-computer-icons-flecha-negra-arrow-a6ee6dcd2e237302e888dc9725a0f7e8.png"></button> 
+              <label for="undo" class="undo-btn-lable">remove last changes</label>
+        </form>
+        <div class="form-check">
+              <input id="show-completed-input" class="form-check-input" type="checkbox" id="showCompleted" name="showCompleted"  checked />
+              <label for="showCompleted" class="form-check-label">Show Completed</label>
+        </div>
+    </div>
+  </section>
+    <section id="task-list" class="task-container">
+      
+    </section>
+  <script  src="js/index.js"></script>
+ 
+  
+</body>
+
+</html>
