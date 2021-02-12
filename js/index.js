@@ -1,12 +1,11 @@
 const taskArea = document.getElementById("task-list");
 const addTaskForm = document.getElementById("newTask");
 const addTaskInput = document.getElementById("add-task-input");
+const addTaskButton = document.getElementById("add-task-button");
 const undoForm = document.getElementById("undo-form");
 const showComplitedInput = document.getElementById("show-completed-input");
 
-document.addEventListener("submit", handleEvent);
-document.addEventListener("change", handleEvent);
-document.addEventListener("click", handleDeleteEvent);
+console.log();
 
 
 function id() {
@@ -18,15 +17,27 @@ function id() {
 function taskToHtml(content) {
 
   let { id, task, completed } = content;
-  return `<div id="todo-${id}" class="task" ><lable class="task__item task__item_span">${task}</lable> <input id="input-${id}" data-id="${id}" ${completed ? 'checked' : ''} class="task__item task__item_input" type="checkbox"> <a type="submit" id="button-${id}" class="task__item_link" ><img data-id="${id}" class="delete-task-img" src="/i/icons8-удалить-навсегда-48.png" ></a></div>`;
+  return `<div id="todo-${id}" class="task" >
+            <lable data-id="${id}"  class="task__item task__item_span">${task}</lable> 
+            <div class="task__item task__item_input-container"> <input id="input-${id}" data-id="${id}" ${completed ? 'checked' : ''}   class="task__item task__item_input" name="taskInput" type="checkbox"> 
+            </div>
+            <form data-id="${id}" name="deleteButton" class="task__item_link-container">
+            <button type="submit" id="button-${id}" data-id="${id}" class="task__item_link" > 
+            </button>
+            </form>
+          </div>`;
 
 };
 
-function renderTasks(state) {
-  const { tasks, showComplited } = state;
-  showComplited ? showComplitedInput.setAttribute("checked", "checked") : showComplitedInput.removeAttribute("checked", "checked");
+
+function renderTasks({ tasks, showComplited }) {
+  showComplited ?
+    showComplitedInput.setAttribute("checked", "checked")
+    : showComplitedInput.removeAttribute("checked", "checked");
   if (tasks) {
-    taskArea.innerHTML = showComplited ? tasks.map(task => taskToHtml(task)).join("") : tasks.filter(task => task.completed !== true).map(task => taskToHtml(task)).join("")
+    taskArea.innerHTML = showComplited ?
+      tasks.map(task => taskToHtml(task)).join("")
+      : tasks.filter(task => task.completed !== true).map(task => taskToHtml(task)).join("");
   }
 };
 
@@ -42,38 +53,24 @@ class Dispatcher {
   }
 }
 
+const dispatcher = new Dispatcher();
+document.addEventListener("submit", (event) => { let action = handleEvent(event); action ? dispatcher.dispatch(action) : console.log(action); });
+document.addEventListener("change", (event) => { let action = handleEvent(event); action ? dispatcher.dispatch(action) : console.log(action); });
+document.addEventListener("dblclick", (event) => { let action = handleEventDbclick(event); action ? dispatcher.dispatch(action) : console.log(action); });
 
-class Store {
+
+class TodoListStore {
   constructor(dispatcher) {
     this.renderList = [];
     this.state = this.initialiseState();
     dispatcher.register(this.actionAdministrator.bind(this))
+    this.history = [];
   };
   renderRegister(renderFunction) {
     this.renderList.push(renderFunction);
   }
   getState() {
     return this.state;
-  };
-  actionAdministrator(state, action) {
-    throw ("actionAdministrator must be predeterminate");
-  };
-  initialiseState() {
-    throw ("initialiseState must be predeterminate")
-  }
-  emitChange() {
-    this.renderList.map(render => render(this.state));
-  }
-}
-
-
-const d = new Dispatcher();
-
-
-class TodoListStore extends Store {
-  constructor() {
-    super(d);
-    this.history = [];
   };
   initialiseState() {
     let initState = localStorage.myTasks ? JSON.parse(localStorage.myTasks) : {
@@ -82,121 +79,178 @@ class TodoListStore extends Store {
     };
     return initState;
   }
-  revertHistory() {
-  }
+
   getHistory() {
     return this.history;
   }
-  actionAdministrator(action) {
-    const { type, payload } = action;
-    const newState = { ...this.state, tasks: [...this.state.tasks] };
-    this.history.push(newState);
-    switch (type) {
-      case "ADD_TASK":
-        {
-          this.state.tasks.push({ id: id(), task: payload, completed: false });
-          this.emitChange();
+  emitChange() {
+    this.renderList.map(render => render(this.state));
+  }
 
-        }
-        break;
-      case "SHOW_COMPLITED":
-        {
+  actionAdministrator(action) {
+    console.log(action);
+    const { type, payload } = action;
+    const newState = JSON.parse(JSON.stringify(this.state));
+    this.history.push(newState);
+    const methods = [
+      ["ADD_TASK",
+        function () {
+          this.state.tasks.push({ id: id(), task: payload, completed: false });
+          addTaskInput.value = "";
+          this.emitChange();
+        }],
+
+      ["SHOW_COMPLITED",
+        function () {
           this.state.showComplited = payload;
           this.emitChange();
-        }
-        break;
-      case "COMPLETE_TASK":
-        {
+        }],
+      ["COMPLETE_TASK",
+        function () {
           const { id, complete } = payload;
           this.state.tasks.map(task => { if (task.id === id) task.completed = complete });
           this.emitChange();
-        }
-        break;
-      case "UNDO_LAST_CHANGES":
-        {
-          if (this.history.length > 1) {
-            this.history.pop();
-            const lastState = { ...this.history.pop() };
-            this.state = { ...lastState, tasks: [...lastState.tasks] };
-            this.emitChange();
+        }],
 
-          }
-          else {
-            alert("there is nothing to undo")
-          }
+      ["UNDO_LAST_CHANGES", function () {
+        if (this.history.length > 1) {
+          this.history.pop();
+          const lastState = { ...this.history.pop() };
+          this.state = { ...lastState, tasks: [...lastState.tasks] };
+          this.emitChange();
 
         }
-        break;
-      case "DELETE_TASK": {
+        else {
+          alert("there is nothing to undo");
+
+        }
+
+      }],
+
+      ["DELETE_TASK", function () {
 
         this.state.tasks = this.state.tasks.filter(task => task.id !== payload);
         this.emitChange();
-      };
-        break;
-    }
+      }],
+
+      ["CHANGE_TASK",
+        function () {
+          console.log(this.history);
+          this.state.tasks.find(task => task.id === payload.id).task = payload.value;
+          this.emitChange();
+          console.log(this.state);
+        }
+      ],
+    ]
+    const actionMethods = new Map(methods);
+    actionMethods.get(type).call(this);
+    actionMethods.type
     localStorage.setItem("myTasks", JSON.stringify(this.state));
 
   }
 };
 
+
 function handleEvent(event) {
   event.preventDefault();
-  let generatedAction;
   const { type, target } = event;
-  if (target.classList.contains("task__item_input")) {
-    generatedAction = {
-      type: "COMPLETE_TASK",
-      payload: { id: target.dataset.id, complete: target.checked }
-    }
-    d.dispatch(generatedAction);
-  };
-  switch (target) {
-    case addTaskForm:
-      {
-        if (addTaskInput.value) {
-          generatedAction = {
-            type: "ADD_TASK",
-            payload: addTaskInput.value,
+  const reg = /^\s+$/g;
+  console.log(addTaskForm.elements.newTaskValue.value);
+  if (type === "change" && target === addTaskInput) return;
+  else
+    if (type === "submit" && target === addTaskForm && (!target.elements.newTaskValue.value || reg.test(target.elements.newTaskValue.value))) { alert("please, enter some text!!!"); return; }
+    else {
+      const actionList = [
+        ["deleteButton", function () {
+          return {
+            type: "DELETE_TASK",
+            payload: target.dataset.id,
           }
-          addTaskInput.value = "";
-          d.dispatch(generatedAction);
+        }
+        ],
+        [addTaskForm, function () {
+          return {
+            type: "ADD_TASK",
+            payload: addTaskForm.elements.newTaskValue.value,
+          }
 
         }
-        else
-          alert("enter task discription");
-      }
-      break;
-    case showComplitedInput: {
-      generatedAction = {
-        type: "SHOW_COMPLITED",
-        payload: target.checked,
-      }
-      d.dispatch(generatedAction);
+        ],
+        [undoForm, function () {
+          return {
+            type: "UNDO_LAST_CHANGES",
+            payload: ""
+          }
+        }
+        ],
+        ["taskInput", function () {
+          return {
+            type: "COMPLETE_TASK",
+            payload: { id: target.dataset.id, complete: target.checked }
+          }
+        }
+        ],
+        [showComplitedInput, function () {
+          return {
+            type: "SHOW_COMPLITED",
+            payload: target.checked,
+          }
+        }
+
+        ],
+
+      ];
+      const getAction = new Map(actionList);
+      console.log(getAction.get(target), getAction.get(target.name));
+      return (getAction.get(target) ? getAction.get(target).call(this) : getAction.get(target.name).call())
     }
-      break;
-    case undoForm: {
-      generatedAction = {
-        type: "UNDO_LAST_CHANGES",
-        payload: ""
-      }
-      d.dispatch(generatedAction);
-    }
-      break;
+}
+function handleEventDbclick(event) {
+  const { target } = event;
+  if (target.classList.contains("task__item_span")) {
+    const changeInput = document.createElement("input");
+    changeInput.classList.add("task__item_span-change");
+    changeInput.dataset.id = target.dataset.id;
+    changeInput.setAttribute("type", "text");
+    changeInput.value = target.innerText;
+    target.appendChild(changeInput);
+    changeInput.focus();
+    changeInput.addEventListener("keydown", handleKeyEnter);
+    changeInput.addEventListener("blur", (event) => { let action = handleBlur(event); action ? dispatcher.dispatch(action) : console.log(action); });
+
+
+
   }
 
 };
-function handleDeleteEvent(event) {
-  const { target } = event;
-  let generatedAction;
-  if (target.classList.contains("delete-task-img")) {
-    generatedAction = {
-      type: "DELETE_TASK",
-      payload: target.dataset.id,
-    };
-    d.dispatch(generatedAction);
+function handleKeyEnter({ type, target, keyCode }) {
+  if (type === "keydown" && keyCode === 13) {
+
+    target.blur();
   }
+
+}
+function handleBlur(event) {
+  event.preventDefault();
+  const { type, target } = event;
+
+  console.log(target);
+  let changAction;
+  if (target.classList.contains("task__item_span-change")) {
+    changAction = {
+      type: "CHANGE_TASK",
+      payload: { id: target.dataset.id, value: target.value, },
+    };
+    target.remove();
+  }
+  return changAction;
+
 }
 
-const s = new TodoListStore(d);
-s.renderRegister(renderTasks);
-s.emitChange();
+
+
+
+
+const store = new TodoListStore(dispatcher);
+store.renderRegister(renderTasks);
+store.emitChange();
